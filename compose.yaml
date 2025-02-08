@@ -4,6 +4,15 @@
     build:
       context: .
       dockerfile: Presentation/YarnAlternatives/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+    depends_on:
+      - mongodb
+    ports:
+      - "5145:5145"
+      - "8081:8081"
+    networks:
+      - yarn_ntw
   mongodb:
     image: mongo:latest
     container_name: mongodb
@@ -14,6 +23,11 @@
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin
+    networks:
+      - yarn_ntw
 
 volumes:
   mongo-data:
+networks:
+  yarn_ntw:
+    driver: bridge

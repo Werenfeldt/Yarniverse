@@ -4,3 +4,5 @@ GET {{YarnAlternatives_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+GET {{YarnAlternatives_HostAddress}}/GetYarn/
+Accept: application/json
