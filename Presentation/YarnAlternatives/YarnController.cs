@@ -1,5 +1,6 @@
 using Database;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 
 namespace YarnAlternatives;
 
@@ -14,5 +15,21 @@ public class YarnController(ILogger<YarnController> logger, IMongoDb database) :
         var result =  await database.InsertElement();
         logger.LogInformation("Inserted Yarn");
         return Ok(result);
+    }
+    
+    // GET
+    [HttpDelete]
+    public async Task<IActionResult> DeleteYarn(string yarnId)
+    {
+        var success =  await database.DeleteElement(yarnId);
+        logger.LogInformation("Inserted Yarn");
+        if (success.IsAcknowledged)
+        {
+            return Ok(success.ToJson());
+        }
+        else
+        {
+            return BadRequest(success.ToJson());
+        }
     }
 }
