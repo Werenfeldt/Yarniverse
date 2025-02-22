@@ -1,8 +1,9 @@
 @YarnAlternatives_HostAddress = http://localhost:5145
 
-GET {{YarnAlternatives_HostAddress}}/weatherforecast/
+###
+GET {{YarnAlternatives_HostAddress}}/api/Yarn
 Accept: application/json
 
 ###
-GET {{YarnAlternatives_HostAddress}}/GetYarn/
+DELETE {{YarnAlternatives_HostAddress}}/api/Yarn?yarnId=67b9763f3c056c923a515622
 Accept: application/json

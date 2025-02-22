@@ -1,19 +1,25 @@
-using Database;
+using Application;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
 
 namespace YarnAlternatives;
 
 [ApiController]
 [Route("api/[controller]")]
-public class YarnController(ILogger<YarnController> logger, IMongoDb database) : Controller
+public class YarnController(ILogger<YarnController> logger, IMediator mediator) : Controller
 {
     // GET
-    [HttpGet]
-    public async Task<IActionResult> GetYarn()
+    [HttpPost]
+    public async Task<IActionResult> CreateYarn()
     {
-        var result =  await database.InsertElement();
-        logger.LogInformation("Inserted Yarn");
+        List<string> producers = ["Sandness", "Filcolana", "Hobbii", "Hjeltsholm"];
+        List<string> yarnNames = ["Double Sunday", "Highland", "Fluffy", "Workeryarn"];
+        List<int> gauges = [22, 25, 28, 20];
+        List<double> needles = [4.5, 5, 7, 3.5];
+        
+        var result = await mediator.Send(new CreateYarnCommand(producers, yarnNames, gauges, needles));
+        
+        logger.LogInformation($"Inserted Yarn with result: {result}");
         return Ok(result);
     }
     
@@ -21,15 +27,14 @@ public class YarnController(ILogger<YarnController> logger, IMongoDb database) :
     [HttpDelete]
     public async Task<IActionResult> DeleteYarn(string yarnId)
     {
-        var success =  await database.DeleteElement(yarnId);
-        logger.LogInformation("Inserted Yarn");
-        if (success.IsAcknowledged)
+        var deleted = await mediator.Send(new DeleteYarnCommand(yarnId));
+        logger.LogInformation("Deleted Yarn");
+        
+        if (!deleted)
         {
-            return Ok(success.ToJson());
+            return BadRequest();
         }
-        else
-        {
-            return BadRequest(success.ToJson());
-        }
+
+        return Ok();
     }
 }
