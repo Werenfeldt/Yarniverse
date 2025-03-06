@@ -8,14 +8,14 @@ namespace YarnAlternatives;
 [Route("api/[controller]")]
 public class YarnController(ILogger<YarnController> logger, IMediator mediator) : Controller
 {
-    // GET
+
     [HttpPost]
     public async Task<IActionResult> CreateYarn()
     {
-        List<string> producers = ["Sandness", "Filcolana", "Hobbii", "Hjeltsholm"];
-        List<string> yarnNames = ["Double Sunday", "Highland", "Fluffy", "Workeryarn"];
-        List<int> gauges = [22, 25, 28, 20];
-        List<double> needles = [4.5, 5, 7, 3.5];
+        List<string> producers = ["Sandness", "Filcolana", "Hobbii", "Hjeltsholm", "Sandness"];
+        List<string> yarnNames = ["Double Sunday", "Highland", "Fluffy", "Workeryarn", "Peer Gynt"];
+        List<int> gauges = [22, 25, 28, 20, 20];
+        List<double> needles = [4.5, 5, 7, 3.5, 4];
         
         var result = await mediator.Send(new CreateYarnCommand(producers, yarnNames, gauges, needles));
         
@@ -23,7 +23,20 @@ public class YarnController(ILogger<YarnController> logger, IMediator mediator) 
         return Ok(result);
     }
     
-    // GET
+    [HttpPost("AddSingle")]
+    public async Task<IActionResult> AddSingleYarn(string producer, string yarnName, int gauge, double needle)
+    {
+        List<string> producers = [producer];
+        List<string> yarnNames = [yarnName];
+        List<int> gauges = [gauge];
+        List<double> needles = [needle];
+        
+        var result = await mediator.Send(new CreateYarnCommand(producers, yarnNames, gauges, needles));
+        
+        logger.LogInformation($"Inserted Yarn with result: {result}");
+        return Ok(result);
+    }
+    
     [HttpDelete]
     public async Task<IActionResult> DeleteYarn(string yarnId)
     {
@@ -36,5 +49,18 @@ public class YarnController(ILogger<YarnController> logger, IMediator mediator) 
         }
 
         return Ok();
+    }
+
+    [HttpGet("FindAlternatives")]
+    public async Task<IActionResult> FindAlternative(int gauge, double needle)
+    {
+        var result = await mediator.Send(new FindAlternativeSameNeedleOneThread(gauge, needle));
+
+        if (result.Count is 0)
+        {
+            return NotFound();
+        }
+        
+        return Ok(result);
     }
 }

@@ -1,6 +1,5 @@
-﻿using Domain;
+﻿using System.Linq.Expressions;
 using Microsoft.Extensions.Configuration;
-using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace Database;
@@ -10,29 +9,65 @@ public class MongoDb : IMongoDb
     private readonly IMongoDatabase _database;
     public MongoDb(IConfiguration configuration)
     {
-        var hej = configuration.GetConnectionString("Mongo_Db");
         var client = new MongoClient(configuration.GetConnectionString("Mongo_Db"));
         _database = client.GetDatabase("Yarniverse");
     }
-    public async Task<bool> InsertElements(List<Yarn> yarns)
+    public async Task<bool> InsertElements<T>(List<T>? elements)
     {
-        var collection = _database.GetCollection<Yarn>("Yarn");
+        if (elements == null || elements.Count == 0) return false;
+        
+        var collection = GetCollection<T>();
+
+        if (collection == null)
+            throw new ArgumentException($"Unsupported yarn type: {typeof(T).Name}");
+
         try
         {
-            await collection.InsertManyAsync(yarns);
-            return true;
+            await collection.InsertManyAsync(elements, new InsertManyOptions { IsOrdered = false });
         }
-        catch (Exception e)
+        catch (MongoBulkWriteException<T> ex)
         {
-            Console.WriteLine(e);
-            return false;
+            Console.WriteLine($"error: {ex.Message}");
         }
+        
+        return true;
     }
 
-    public async Task<DeleteResult> DeleteElement(string id)
+    public async Task<DeleteResult> DeleteElement<T>(string id)
     {
-        var collection = _database.GetCollection<Yarn>("Yarn");
+        var collection = GetCollection<T>();
         // Build a filter to locate the document by id
-        return await collection.DeleteOneAsync(x => x.Id == Guid.Parse(id));
+        var filter = Builders<T>.Filter.Eq("_id", Guid.Parse(id));
+        return await collection.DeleteOneAsync(filter);
+    }
+    
+    public async Task<List<T>> GetByPredicateAsync<T>(Expression<Func<T, bool>> predicate)
+    {
+        var collection = GetCollection<T>();
+        
+        return await collection.Find(predicate).ToListAsync();
+    }
+
+    private IMongoCollection<T> GetCollection<T>()
+    {
+        var collectionName = typeof(T).Name + "s";
+        var collectionSetup = !_database.ListCollectionNames().ToList().Contains(collectionName);
+        var collection = _database.GetCollection<T>(collectionName);
+        if (collectionSetup)
+        {
+            // Create index if the collection is empty (only during initial setup)
+            var nameProperty = typeof(T).GetProperty("Name");
+
+            if (nameProperty != null)
+            {
+                var indexKeys = Builders<T>.IndexKeys.Ascending(nameProperty.Name);
+                var indexOptions = new CreateIndexOptions { Unique = true };
+                var indexModel = new CreateIndexModel<T>(indexKeys, indexOptions);
+
+                // Create the unique index on the "Name" property
+                collection.Indexes.CreateOne(indexModel);
+            }
+        }
+        return collection;
     }
 }
