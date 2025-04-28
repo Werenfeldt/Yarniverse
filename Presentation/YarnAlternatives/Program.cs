@@ -1,5 +1,4 @@
-using System.Reflection;
-using Application;
+using Application.Services;
 using Database;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -7,7 +6,10 @@ using MongoDB.Bson.Serialization.Serializers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddApplication();
+
+builder.Services.AddScoped<IMongoDb, MongoDb>();
+builder.Services.AddScoped<IYarnAlternativeService, YarnAlternativeService>();
+builder.Services.AddScoped<IYarnService, YarnService>();
 builder.Services.AddControllers();
 
 BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));

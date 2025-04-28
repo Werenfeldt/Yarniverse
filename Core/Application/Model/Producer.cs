@@ -1,6 +1,4 @@
-using MongoDB.Bson.Serialization.Attributes;
-
-namespace Domain;
+namespace Application.Model;
 
 public record Producer(string Name)
 {

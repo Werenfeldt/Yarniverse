@@ -1,18 +1,12 @@
-﻿using Database;
-using Domain;
-using MediatR;
+using Application.Commands;
+using Application.Model;
+using Database;
 
-namespace Application;
+namespace Application.Services;
 
-public record CreateYarnCommand(
-    List<string> ProducerNames,
-    List<string> YarnNames,
-    List<int> Gauges,
-    List<double> NeedleSize) : IRequest<bool>;
-
-public class CreateYarnHandler(IMongoDb database) : IRequestHandler<CreateYarnCommand, bool>
+public class YarnService(IMongoDb database) : IYarnService
 {
-    public async Task<bool> Handle(CreateYarnCommand request, CancellationToken cancellationToken)
+    public async Task<Result> CreateYarn(CreateYarnCommand request, CancellationToken cancellationToken = default)
     {
         List<Yarn> yarns = new List<Yarn>();
         for (int i = 0; i < request.ProducerNames.Count; i++)
@@ -20,7 +14,7 @@ public class CreateYarnHandler(IMongoDb database) : IRequestHandler<CreateYarnCo
             var producerName = request.ProducerNames[i];
             var existingProducerList = await database.GetByPredicateAsync<Yarn>(p => p.Producer.Name == producerName);
             var existingProducer = existingProducerList.FirstOrDefault()?.Producer;
-            
+        
             var yarn = new Yarn(
                 request.YarnNames[i],
                 existingProducer ?? new Producer( 
@@ -28,11 +22,20 @@ public class CreateYarnHandler(IMongoDb database) : IRequestHandler<CreateYarnCo
                 "Green",
                 new Gauge(
                     request.Gauges[i], 
-                    request.NeedleSize[i]));
-            
+                    request.NeedleSizes[i])
+                );
+        
             yarns.Add(yarn);
         }
 
-        return await database.InsertElements(yarns);
+        return new Result(await database.InsertElements(yarns));
+    
+    }
+
+    public async Task<Result> DeleteYarn(string id, CancellationToken cancellationToken = default)
+    {
+        var success =  await database.DeleteElement<Yarn>(id);     
+                                     
+        return new Result(success);  
     }
 }

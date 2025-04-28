@@ -33,12 +33,14 @@ public class MongoDb : IMongoDb
         return true;
     }
 
-    public async Task<DeleteResult> DeleteElement<T>(string id)
+    public async Task<bool> DeleteElement<T>(string id)
     {
         var collection = GetCollection<T>();
         // Build a filter to locate the document by id
         var filter = Builders<T>.Filter.Eq("_id", Guid.Parse(id));
-        return await collection.DeleteOneAsync(filter);
+        var result = await collection.DeleteOneAsync(filter);
+        
+        return result is { IsAcknowledged: true, DeletedCount: > 0 };
     }
     
     public async Task<List<T>> GetByPredicateAsync<T>(Expression<Func<T, bool>> predicate)
