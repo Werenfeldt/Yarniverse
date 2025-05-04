@@ -11,6 +11,10 @@ public static class RangeHelper
     public static Expression<Func<Yarn, bool>> StitchInRange(int value) => yarn => yarn.Gauge.Stitch.Min <= value && yarn.Gauge.Stitch.Max >= value;
     
     public static Expression<Func<Yarn, bool>> NeedlesInRange(double value) => yarn => yarn.Gauge.NeedleSize.Min <= value && yarn.Gauge.NeedleSize.Max >= value;
+
+    
+    
+    //
     
     public static bool InRange((int,int) value, int target) => value.Item1 <= target && target <= value.Item2; 
     
