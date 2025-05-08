@@ -53,9 +53,10 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
     
     private async Task<IEnumerable<YarnSuggestion>> FindDoubleYarnSuggestions(double targetGauge, double targetNeedle)
     {
-        const double gaugeTolerance = 3.0;
+        const double gaugeTolerance = 1.0;
+        var makeSelectionSmaller = 10.0;
 
-        var pred = YarnMath.SingleYarn(targetGauge, targetNeedle, gaugeTolerance);
+        var pred = YarnMath.SingleYarn(targetGauge, targetNeedle, makeSelectionSmaller);
 
         var yarns = await database.GetByPredicateAsync(pred);
         var result = new List<YarnSuggestion>();
@@ -65,15 +66,20 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
             {
                 if (yarn1.Name == yarn2.Name) continue; // skip same yarn twice unless you allow it
 
-                double adjusted = YarnMath.AdjustGaugeToNeedle(yarn1, yarn2, targetNeedle);
+                double estimatedGauge = YarnMath.EstimateCombinedGauge(yarn1, yarn2, targetNeedle);
+                
+                Console.WriteLine($"{yarn1.Name} - {yarn2.Name} - {estimatedGauge}");
+                
+                Console.WriteLine($"{estimatedGauge} - {targetGauge} - {gaugeTolerance}");
 
-                if (Math.Abs(adjusted - targetGauge) <= gaugeTolerance)
+                if (Math.Abs(estimatedGauge - targetGauge) <= gaugeTolerance)
                 {
                     result.Add(new YarnSuggestion("combo", yarn1)
                     {
                         Yarn2 = yarn2,
-                        EstimatedGauge = adjusted,
-                        Score = CalculateScore(adjusted, targetGauge)
+                        EstimatedGauge = estimatedGauge,
+                        TargetNeedle = targetNeedle,
+                        Score = CalculateScore(estimatedGauge, targetGauge)
                     });
                 }
             }
@@ -83,6 +89,7 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
 
     private double CalculateScore(double estimatedGauge, double targetGauge)
     {
+        //double gaugeDiff = 1.0 - Math.Abs(estimatedGauge - targetGauge) / targetGauge;
         double gaugeDiff = Math.Abs(estimatedGauge - targetGauge);
         //double pricePenalty = price / 10.0; // e.g., 50 kr yarn = +5 points
         //double fiberPenalty = preferredFiber == null || fiberCombo.Contains(preferredFiber, StringComparison.OrdinalIgnoreCase) ? 0 : 5;

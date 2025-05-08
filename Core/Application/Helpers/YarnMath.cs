@@ -10,21 +10,37 @@ public static class YarnMath
         // Basic linear approximation
         return Math.Round(Average(yarn.Gauge.Stitch) * (Average(yarn.Gauge.NeedleSize) / targetNeedle),1);
     }
-    
-    public static double AdjustGaugeToNeedle(Yarn yarn1, Yarn yarn2, double newNeedle)
+
+    public static double EstimateCombinedGauge(Yarn yarn1, Yarn yarn2, double targetNeedle)
     {
-        // Basic linear approximation
-        return EstimateCombinedGauge(yarn1.Gauge.Stitch, yarn2.Gauge.Stitch) * (EstimateCombinedNeedle(yarn1.Gauge.NeedleSize, yarn2.Gauge.NeedleSize) / newNeedle);
+        var thickness1 = EstimateThickness(Average(yarn1.Gauge.Stitch));
+        var thickness2 = EstimateThickness(Average(yarn2.Gauge.Stitch));
+        // Combine yarn thicknesses geometrically
+        double combinedThickness = Math.Sqrt(thickness1 * thickness1 + thickness2 * thickness2);
+
+        // ✨ Calibration scaling factor
+        combinedThickness *= 0.82;
+        
+        // Adjust for the effect of needle size
+        double avgRecommendedNeedle = (Average(yarn1.Gauge.NeedleSize) + Average(yarn2.Gauge.NeedleSize)) / 2.0;
+        // Empirical: needle change has more than linear effect
+        double needleRatio = targetNeedle / avgRecommendedNeedle;
+        
+        // Dynamic exponent scaling
+        double exponent = 0.5 + 0.3 * Math.Min(1.0, Math.Abs(needleRatio - 1.0));
+        double needleAdjustment = Math.Pow(needleRatio, exponent);
+
+        double adjustedThickness = combinedThickness * needleAdjustment;
+
+        // Return back to gauge
+        return Math.Round(10.0 / adjustedThickness, 1);
     }
 
-    private static double EstimateCombinedNeedle(Range<double> needle1, Range<double> needle2)
+    public static double EstimateThickness(double gauge)
     {
-        return (Average(needle1) + Average(needle2)) / 2;
-    }
-    private static double EstimateCombinedGauge(Range<int> gauge1, Range<int> gauge2)
-    {
-        // Harmonic mean approximation for held-together yarns
-        return 1 / (1 / Average(gauge1) + 1 / Average(gauge2));
+        //if (gauge <= 0 || needle <= 0)
+          //  throw new ArgumentException("Gauge and needle must be positive");
+        return 10.0 / gauge;
     }
     
     // TODO change such that the Average doesnt need to be written out. 
@@ -32,8 +48,6 @@ public static class YarnMath
         Math.Abs(
             Math.Round((yarn.Gauge.Stitch.Min+yarn.Gauge.Stitch.Max)/2.0, 1) * 
             (Math.Round((yarn.Gauge.NeedleSize.Min+yarn.Gauge.NeedleSize.Max)/2.0, 1) / targetNeedle) - targetGauge) <= gaugeTolerance;
-    
-    //public static Expression<Func<Yarn>>
     
     private static double Average(Range<int> gauge) => Math.Round((gauge.Min+gauge.Max)/2.0, 1);
     private static double Average(Range<double> gauge) => Math.Round((gauge.Min+gauge.Max)/2.0, 1);
