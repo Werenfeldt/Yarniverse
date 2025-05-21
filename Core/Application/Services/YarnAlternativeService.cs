@@ -1,7 +1,6 @@
 using Application.AlgorithmStrategies;
 using Application.Helpers;
 using Application.Model;
-using RangeHelper = Application.Helpers.RangeHelper;
 using Database;
 
 namespace Application.Services;
@@ -10,12 +9,6 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
 {
     public async Task<Result> GetYarnAlternatives(FindAlternativeSameNeedleOneThread request, CancellationToken cancellationToken)
     {
-        // var needlePred = RangeHelper.NeedlesInRange(request.RecipeNeedle);
-        // var stitchPred = RangeHelper.StitchInRange(request.RecipeGauge);
-        // var pred = needlePred.AndAlso(stitchPred);
-        //
-        // var yarns = await database.GetByPredicateAsync(pred);
-
         var yarns = await FindSuggestions(request.RecipeGauge, request.RecipeNeedle);
         
         var success = yarns.Any();
@@ -25,24 +18,21 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
     
     private async Task<List<YarnSuggestion>> FindSuggestions(double targetGauge, double targetNeedle, string? preferredFiber = null)
     {
-        var suggestions = new List<YarnSuggestion>();
-        suggestions.AddRange(await FindSingleYarnSuggestions(targetGauge, targetNeedle));
-        
-        suggestions.AddRange(await FindDoubleYarnSuggestions(targetGauge, targetNeedle));
+        var suggestions = await FindSingleYarnSuggestions(targetGauge, targetNeedle);
 
         return suggestions.OrderBy(s => s.Score).Take(10).ToList();
     }
 
-    private async Task<IEnumerable<YarnSuggestion>> FindSingleYarnSuggestions(double targetGauge, double targetNeedle)
+    public async Task<IEnumerable<YarnSuggestion>> FindSingleYarnSuggestions(double targetGauge, double targetNeedle)
     {
-        const double gaugeTolerance = 1.0;
+        const double gaugeTolerance = 2.0;
         
         var pred = YarnMath.SingleYarn(targetGauge, targetNeedle, gaugeTolerance);
 
         var yarns = await database.GetByPredicateAsync(pred);
 
         return yarns.Select(x =>
-            new YarnSuggestion("single", x)
+            new YarnSuggestion(x)
             {
                 EstimatedGauge = YarnMath.AdjustGaugeToNeedle(x,targetNeedle),
                 TargetNeedle = targetNeedle,
@@ -51,42 +41,6 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
         );
     }
     
-    private async Task<IEnumerable<YarnSuggestion>> FindDoubleYarnSuggestions(double targetGauge, double targetNeedle)
-    {
-        const double gaugeTolerance = 1.0;
-        var makeSelectionSmaller = 10.0;
-
-        var pred = YarnMath.SingleYarn(targetGauge, targetNeedle, makeSelectionSmaller);
-
-        var yarns = await database.GetByPredicateAsync(pred);
-        var result = new List<YarnSuggestion>();
-        foreach (var yarn1 in yarns)
-        {
-            foreach (var yarn2 in yarns)
-            {
-                if (yarn1.Name == yarn2.Name) continue; // skip same yarn twice unless you allow it
-
-                double estimatedGauge = YarnMath.EstimateCombinedGauge(yarn1, yarn2, targetNeedle);
-                
-                Console.WriteLine($"{yarn1.Name} - {yarn2.Name} - {estimatedGauge}");
-                
-                Console.WriteLine($"{estimatedGauge} - {targetGauge} - {gaugeTolerance}");
-
-                if (Math.Abs(estimatedGauge - targetGauge) <= gaugeTolerance)
-                {
-                    result.Add(new YarnSuggestion("combo", yarn1)
-                    {
-                        Yarn2 = yarn2,
-                        EstimatedGauge = estimatedGauge,
-                        TargetNeedle = targetNeedle,
-                        Score = CalculateScore(estimatedGauge, targetGauge)
-                    });
-                }
-            }
-        }
-        return result;
-    }
-
     private double CalculateScore(double estimatedGauge, double targetGauge)
     {
         //double gaugeDiff = 1.0 - Math.Abs(estimatedGauge - targetGauge) / targetGauge;

@@ -1,10 +1,8 @@
 using Application.AlgorithmStrategies;
 using Application.Commands;
-using Application.Helpers;
 using Application.Model;
 using Application.Services;
 using Microsoft.AspNetCore.Mvc;
-using RangeHelper = Application.Helpers.RangeHelper;
 
 namespace YarnAlternatives;
 
@@ -16,16 +14,10 @@ public class YarnController(ILogger<YarnController> logger, IYarnService yarnSer
     [HttpPost]
     public async Task<IActionResult> CreateYarn()
     {
-        List<string> producers = ["Sandness", "Filcolana", "Hobbii", "Hjeltsholm", "Sandness"];
-        List<string> yarnNames = ["Double Sunday", "Highland", "Fluffy", "Workeryarn", "Peer Gynt"];
-        List<Range<int>> gauges = RangeHelper.MapRange(new List<(int, int)>
-        {
-            (22, 24), (25, 26), (28, 30), (20, 21), (20, 23)
-        });
-        List<Range<double>> needles = RangeHelper.MapRange(new List<(double, double)>
-        {
-            (4.5,5.0), (5,6.5), (7,8), (3.5, 4.5), (4,4)
-        });
+        List<string> producers = ["Sandness", "Filcolana", "Hobbii", "Hjeltsholm", "Isager"];
+        List<string> yarnNames = ["Double Sunday", "Highland", "Fluffy", "Workeryarn", "Jensen Yarn"];
+        List<StitchRange> gauges = [new (22, 24), new (25, 26), new (28, 30), new (20, 21), new(20, 23)];
+        List<NeedleRange> needles = [new (4.5, 5.0), new (5, 6.5), new (7, 8), new (3.5, 4.5), new (4, 4)];
         
         var result = await yarnService.CreateYarn(new CreateYarnCommand(producers, yarnNames, gauges, needles));
         

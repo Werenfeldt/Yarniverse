@@ -5,5 +5,5 @@ namespace Application.Commands;
 public record CreateYarnCommand(
     List<string> ProducerNames,
     List<string> YarnNames,
-    List<Range<int>> Gauges,
-    List<Range<double>> NeedleSizes);
+    List<StitchRange> Gauges,
+    List<NeedleRange> NeedleSizes);

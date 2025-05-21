@@ -19,7 +19,6 @@ public class YarnService(IMongoDb database) : IYarnService
                 request.YarnNames[i],
                 existingProducer ?? new Producer( 
                     request.ProducerNames[i]),
-                "Green",
                 new Gauge(
                     request.Gauges[i], 
                     request.NeedleSizes[i])
