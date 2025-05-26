@@ -2,7 +2,7 @@ namespace Application.Model;
 
 public record Gauge(StitchRange StitchRange, NeedleRange NeedleRange)
 {
-    public double StitchAverage => Math.Round((StitchRange.Min + StitchRange.Max) / 2.0, 1);
+    public int StitchAverage => (int)Math.Round((StitchRange.Min + StitchRange.Max) / 2.0, MidpointRounding.AwayFromZero);
     
     public double NeedleAverage => Math.Round((NeedleRange.Min + NeedleRange.Max) / 2.0, 1);
 }

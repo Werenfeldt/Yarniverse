@@ -12,13 +12,14 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
     {
         var yarns = await FindSingleYarnSuggestions(request.RecipeGauge, request.RecipeNeedle);
 
-        var success = yarns.Any();
+        var yarnSuggestions = yarns.ToList();
+        var success = yarnSuggestions.Any();
 
         return new Result(success)
-            { Message = success ? $"{yarns.ToList().Count} found" : "no yarn matches", Data = yarns };
+            { Message = success ? $"{yarnSuggestions.Count} found" : "no yarn matches", Data = yarns };
     }
 
-    public async Task<IEnumerable<YarnSuggestion>> FindSingleYarnSuggestions(double targetGauge, double targetNeedle)
+    public async Task<IEnumerable<YarnSuggestion>> FindSingleYarnSuggestions(int targetGauge, double targetNeedle)
     {
         const double gaugeTolerance = 1.0;
 
@@ -29,39 +30,44 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
         return yarns.Select(x => EvaluateYarnMatch(x, targetGauge, targetNeedle))
             .OrderBy(result => result.Score)
             .ToList();
-        ;
     }
 
-    public YarnSuggestion EvaluateYarnMatch(Yarn yarn, double targetGauge, double targetNeedle,
+    private YarnSuggestion EvaluateYarnMatch(Yarn yarn, int targetGauge, double targetNeedle,
         double gaugeTolerance = 1.0, double needleWeight = 0.5)
     {
-        var evalYarn = new YarnSuggestion(yarn);
+        var suggestedNeedle = GetSuggestedNeedleForTargetGauge(yarn, targetGauge, targetNeedle);
+        var gaugeDifference = GetGaugeDifference(yarn, targetGauge, suggestedNeedle);
         
-        evalYarn.SuggestedNeedleForTargetGauge = GetSuggestedNeedleForTargetGauge(yarn, targetGauge, targetNeedle);
-        evalYarn.GaugeDifference = GetGaugeDifference(yarn, targetGauge, evalYarn.SuggestedNeedleForTargetGauge);
-        evalYarn.Score = GetScore(yarn.Gauge.StitchAverage, targetGauge, yarn.Gauge.NeedleAverage, targetNeedle, needleWeight);
-        evalYarn.DensityTag = GetDensityTag(targetGauge, gaugeTolerance);
-        
-        return evalYarn;
+        return new YarnSuggestion(yarn)
+        {
+            SuggestedNeedleForTargetGauge = suggestedNeedle,
+            GaugeDifference = gaugeDifference,
+            Score = GetScore(yarn, yarn.Gauge.StitchAverage, targetGauge, yarn.Gauge.NeedleAverage, targetNeedle, needleWeight),
+            DensityTag = GetDensityTag(gaugeDifference, gaugeTolerance)
+        };
     }
 
-    private double GetScore(double gaugeCenter, double targetGauge, double needleCenter, double targetNeedle,
+    private double GetScore(Yarn yarn, int gaugeCenter, int targetGauge, double needleCenter, double targetNeedle,
         double needleWeight)
     {
+        
+        if (IsPerfectMatch(yarn, targetGauge, gaugeCenter, targetNeedle, needleCenter)) return 0;
+        
         return Math.Abs(gaugeCenter - targetGauge) + Math.Abs(needleCenter - targetNeedle) * needleWeight;
     }
 
     private DensityTag GetDensityTag(double gaugeDifference, double gaugeTolerance )
     {
         if (gaugeDifference > gaugeTolerance)
-            return DensityTag.Loose; // Yarn gives fewer stitches per 10cm → more open fabric
+            return DensityTag.Loose; // Yarn gives fewer stitches per 10 cm → more open fabric
 
         if (gaugeDifference < -gaugeTolerance)
-            return DensityTag.Dense; // Yarn gives more stitches per 10cm → tighter fabric
+            return DensityTag.Dense; // Yarn gives more stitches per 10 cm → tighter fabric
         
         return DensityTag.Neutral;
     }
 
+    // TODO if needlerange is right ouside suggest best needle outside range. 
 private double GetSuggestedNeedleForTargetGauge(Yarn yarn, double targetGauge, double targetNeedle)
     {
         var nMax = yarn.Gauge.NeedleRange.Max; 
@@ -84,22 +90,31 @@ private double GetSuggestedNeedleForTargetGauge(Yarn yarn, double targetGauge, d
             .Needle;
     }
 
-    private double GetGaugeDifference(Yarn yarn, double targetGauge, double suggestedNeedleForTargetGauge)
+    private double GetGaugeDifference(Yarn yarn, int targetGauge, double suggestedNeedleForTargetGauge)
     {
         var sMin = yarn.Gauge.StitchRange.Min;       
         var sMax = yarn.Gauge.StitchRange.Max;       
         var nMin = yarn.Gauge.NeedleRange.Min;       
-        var nMax = yarn.Gauge.NeedleRange.Max;       
+        var nMax = yarn.Gauge.NeedleRange.Max;
+
+        if (IsPerfectMatch(yarn, targetGauge, yarn.Gauge.StitchAverage, suggestedNeedleForTargetGauge, yarn.Gauge.NeedleAverage)) return 0;
         
         // Calculate actual achievable gauge at suggested needle (inverse interpolation)     
         if (Math.Abs(nMax - nMin) <= 0.0)
         {
-            return Math.Round(yarn.Gauge.StitchAverage - targetGauge, 2);
+            return yarn.Gauge.StitchAverage - targetGauge;
         }                                                                                                                
-        else                                                                                                             
-        {                                                                                                                
-            var achievedGauge = sMax - (sMax - sMin) * (suggestedNeedleForTargetGauge - nMin) / (nMax - nMin);  
-            return Math.Round(achievedGauge - targetGauge, 2); 
-        }                                                                                                                
+                                                                                                              
+        var achievedGauge = sMax - (sMax - sMin) * (suggestedNeedleForTargetGauge - nMin) / (nMax - nMin);  
+        return Math.Round(achievedGauge - targetGauge, 2); 
+                                                                                                                     
+    }
+
+    private bool IsPerfectMatch(Yarn yarn, int targetGauge, int gaugeCenter, double targetNeedle, double needleCenter)
+    {
+        return
+            (yarn.Gauge.StitchRange.Min.Equals(targetGauge) && yarn.Gauge.NeedleRange.Min.Equals(targetNeedle)) ||
+            (yarn.Gauge.StitchRange.Max.Equals(targetGauge) && yarn.Gauge.NeedleRange.Max.Equals(targetNeedle)) ||
+            (gaugeCenter.Equals(targetGauge) && needleCenter.Equals(targetNeedle));
     }
 }
