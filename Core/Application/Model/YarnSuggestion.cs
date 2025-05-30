@@ -4,13 +4,13 @@ namespace Application.Model;
 
 public record YarnSuggestion(Yarn Yarn)
 {
-    public double Score { get; set; } // lower = better
+    public double Score { get; init; } // lower = better
         
-    public DensityTag DensityTag { get; set; }
+    public DensityTag DensityTag { get; init; }
         
-    public double SuggestedNeedleForTargetGauge { get; set; }
+    public double SuggestedNeedleForTargetGauge { get; init; }
         
-    public double GaugeDifference { get; set; } // Positive = looser, negative = denser
+    public double GaugeDifference { get; init; } // Positive = looser, negative = denser
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
