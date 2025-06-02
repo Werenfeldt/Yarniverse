@@ -21,7 +21,7 @@ public class Tests
     public async Task Test1()
     {
         //Arrange
-        SetUpMongoDb(20, 4.0, 1);
+        SetUpMongoDb(20, 1);
         
         //Act
         var result = await _yarnAlternativeService.FindSingleYarnSuggestions(20, 4.0);
@@ -31,10 +31,10 @@ public class Tests
         Assert.That(yarn.Yarn.Name, Is.EqualTo("Lima"));
     }
 
-    private void SetUpMongoDb(int targetGauge, double targetNeedle, int gaugeTolerance)
+    private void SetUpMongoDb(int targetGauge, int gaugeTolerance)
     {
         // Act: use actual YarnMath logic to get the expected predicate
-        var predicate = YarnMath.SingleYarn(targetGauge, targetNeedle, gaugeTolerance);
+        var predicate = YarnMath.SingleYarn(targetGauge, gaugeTolerance);
 
         // Apply predicate to known yarns to get the expected filtered result
         var expectedYarns = GetYarn().Where(predicate.Compile()).ToList();
