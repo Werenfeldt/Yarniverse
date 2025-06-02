@@ -36,8 +36,6 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
     {
         Console.WriteLine($"Evaluating yarn: {yarn.Name}");
         var (suggestedNeedle , gaugeDiff) = GetClosestNeedleMatchByGauge(yarn, targetGauge);
-        //var gaugeDifference = GetGaugeDifference(yarn, targetGauge, suggestedNeedle);
-        
         
         return new YarnSuggestion(yarn)
         {
@@ -105,7 +103,6 @@ public class YarnAlternativeService(IMongoDb database) : IYarnAlternativeService
             case <= -2:
                 return (mappedList.Needle - 0.5, mappedList.GaugeDiff);
             default:
-                ;
                 return (mappedList.Needle, mappedList.GaugeDiff);
         }
     }
